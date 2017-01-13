@@ -9,28 +9,6 @@
 import Foundation
 import JavaScriptCore
 
-/// Shamessly copied from: https://github.com/matthewcheok/Kaleidoscope/blob/238c1942163e251d3f74bcae67531085f29ecda9/Kaleidoscope/Regex.swift
-var expressions = [String: NSRegularExpression]()
-
-public extension String {
-    public func match(regex: String, line: Bool = true) -> String? {
-        let expression: NSRegularExpression
-        if let exists = expressions[regex] {
-            expression = exists
-        } else {
-            expression = try! NSRegularExpression(pattern: "^\(regex)", options: [])
-            expressions[regex] = expression
-        }
-        
-        let range = expression.rangeOfFirstMatch(in: self, options: [], range: NSMakeRange(0, self.utf16.count))
-        if range.location != NSNotFound {
-            return (self as NSString).substring(with: range)
-        }
-        
-        return nil
-    }
-}
-
 enum Token {
     case method(HTTPMethod)
     case path(String)
@@ -41,6 +19,8 @@ enum HTTPMethod: String {
     case GET
     case POST
 }
+
+//MARK: Lexing
 
 typealias TokenGenerator = (String) -> Token?
 
@@ -54,10 +34,11 @@ func tokenizer(input: String) -> [Token] {
             return Token.method(HTTPMethod(rawValue: $0)!)
         }),        
         //TODO: I suck at regex. Refactor the code an exclude characters using regular expression.
-        ("\\/(.*?)\\&", {
-            return .path(String($0.characters.dropLast().dropLast()))
+        ("\\`(.*?)\\`", {
+            print("PATH: \($0)")
+            return .path(String($0.characters.dropFirst().dropLast()))
         }),
-        ("\\;;;(.*?)\\@@", {
+        ("\\;;(.*?)\\@@", {
             
             print($0)
             let bodyContent = String($0.characters.dropLast().dropLast())
@@ -94,8 +75,10 @@ func tokenizer(input: String) -> [Token] {
     return tokens
 }
 
+//MARK: Parsing
 
 /*
+ Grammar
  handler: httpMethod route body
  httpMethod: get
  route: path
@@ -142,7 +125,7 @@ struct Parser {
         return token
     }
     
-    private mutating func parseRoute() throws -> [String]  {
+    private mutating func parsePath() throws -> [String]  {
         guard case let .path(content) = try popCurrentToken() else {
             throw ParsingError.invalidTokens(expecting: "Expecting path")
         }
@@ -164,9 +147,9 @@ struct Parser {
             guard case let .method(httpMethod) = try popCurrentToken() else {
                 throw ParsingError.invalidTokens(expecting: "Expecting HTTP method")
             }
-            let route = try parseRoute()//TODO Rename
+            let path = try parsePath()
             let body  = try parseBody()
-            let request = Request(method: httpMethod, path: route)
+            let request = Request(method: httpMethod, path: path)
             let handler = Handler(request: request, response: body)
             
             nodes.append(handler)
@@ -183,7 +166,6 @@ final class Node {
 }
 
 struct Router {
-//    var handlers = Set<Handler>() TODO
     var nodes = [String: Node]()
     
     private var rootNode = Node()
@@ -386,10 +368,21 @@ struct Socket {
     
 }
 
+extension Socket: Hashable, Equatable {
+    public var hashValue: Int {
+        return Int(self.descriptor)
+    }
+    
+    static public func == (socket1: Socket, socket2: Socket) -> Bool {
+        return socket1.descriptor == socket2.descriptor
+    }
+}
+
 struct HTTPServer {
-    let socket: Socket
-    let handlers: [Handler]
-    var router: Router
+    private let socket: Socket
+    private var sockets = Set<Socket>()
+    private let handlers: [Handler]
+    private var router: Router
     
     mutating func start(port: in_port_t = 8080) throws {
         try socket.bindAndListen()
@@ -413,7 +406,7 @@ struct HTTPServer {
             }
             
             let request = Request(method: httpMethod, path: path)
-            guard let (params, content) = router.route(request) else { //TODO take care of the params
+            guard let (params, content) = router.route(request) else {
                 _ = try client.write404()
                 try client.close()
                 
@@ -424,7 +417,7 @@ struct HTTPServer {
             
             let jsSource = "var mainFunc = function(\(paramsDeclaration)) { \(content) }"
             let context = JSContext()
-            context?.evaluateScript(jsSource)
+            _ = context?.evaluateScript(jsSource)
             
             let mainFunc = context?.objectForKeyedSubscript("mainFunc")
             let result = mainFunc!.call(withArguments: Array(params.values))

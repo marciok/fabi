@@ -8,20 +8,22 @@
 
 import Foundation
 
+
 var input = try! String(contentsOfFile: "/Users/MarcioK/Projects/fabi/fabi/hello.fab")
 input = input.replacingOccurrences(of: "\n", with: "\\n")
 let regex = try! NSRegularExpression(pattern: "\\&\\\\n(.*?)\\@@")
 var nsString = input as NSString
 let results = regex.matches(in: input, range: NSRange(location: 0, length: nsString.length))
-var js = results.map { nsString.substring(with: $0.range).replacingOccurrences(of: "\\n", with: ";;;")}
-
+var js = results.map { nsString.substring(with: $0.range).replacingOccurrences(of: "\\n", with: ";;")}
+input = nsString as String
 for i in 0..<results.count {
-    nsString = nsString.replacingCharacters(in: results[i].range, with: js[i]) as NSString
+    input = input.replacingCharacters(in: results[i].range.range(for: input)!, with: js[i])
 }
-nsString = nsString.replacingOccurrences(of: "\\n", with: " ") as NSString
+
+input = input.replacingOccurrences(of: "\\n", with: " ")
 
 
-let tokens = tokenizer(input: nsString as String)
+let tokens = tokenizer(input: input)
 var parser = Parser(tokens: tokens)
 let handlers = try! parser.parseHandler()
 var router = Router()
