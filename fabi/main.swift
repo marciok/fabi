@@ -32,7 +32,7 @@ for handler in handlers {
 }
 
 let socket = try! Socket()
-var server = HTTPServer(socket: socket, handlers: handlers, router: router)
+var server = HTTPServer(socket: socket, router: router, handlers: handlers) // TODO: Fix that
 try! server.start()
 
 

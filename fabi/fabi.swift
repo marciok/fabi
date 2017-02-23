@@ -260,10 +260,12 @@ struct Socket {
         
         var value: Int32 = 1
         if setsockopt(descriptor, SOL_SOCKET, SO_REUSEADDR, &value, socklen_t(MemoryLayout<Int32>.size)) == -1 {
-            Darwin.close(descriptor) // TODO: Refactor
+//            Darwin.close(descriptor) // TODO: Refactor
             throw SocketError.failed(errnoDescription())
         }
 
+        var no_sig_pipe: Int32 = 1
+        setsockopt(descriptor, SOL_SOCKET, SO_NOSIGPIPE, &no_sig_pipe, socklen_t(MemoryLayout<Int32>.size))
     }
     
     init(descriptor: SocketDescriptor) {
@@ -378,61 +380,82 @@ extension Socket: Hashable, Equatable {
     }
 }
 
-struct HTTPServer {
-    private let socket: Socket
+final class HTTPServer {
+    let socket: Socket
     private var sockets = Set<Socket>()
-    private let handlers: [Handler]
-    private var router: Router
+    let handlers: [Handler]
+    var router: Router
     
-    mutating func start(port: in_port_t = 8080) throws {
+    init(socket: Socket, router: Router, handlers: [Handler]) {
+        self.socket = socket
+        self.router = router
+        self.handlers = handlers
+    }
+    
+    func start(port: in_port_t = 8080) throws {
         try socket.bindAndListen()
         print("Server started at \(port)")
         
         while let client = try? socket.acceptClient() {
-            let response = try client.readLine()
-            let statusLineTokens = response.characters.split { $0 == " " }.map(String.init)
-            if statusLineTokens.count < 3 {
-                throw SocketError.failed(errnoDescription())
-            }
             
-            print("Recieved: \(response)")
-            
-            let path = statusLineTokens[1].characters.split(separator: "/").map(String.init)
-            guard let httpMethod = HTTPMethod.init(rawValue: statusLineTokens[0]) else {
-                _ = try client.write404()
-                try client.close()
+            DispatchQueue.global(qos: DispatchQoS.QoSClass.background).async { [weak self] in
                 
-                continue
+                do {
+                    self?.sockets.insert(client)
+                    let response = try client.readLine()
+                    let statusLineTokens = response.characters.split { $0 == " " }.map(String.init)
+                    if statusLineTokens.count < 3 {
+                        throw SocketError.failed(errnoDescription())
+                    }
+                    
+                    print("Recieved: \(response)")
+                    
+                    print(statusLineTokens)
+                    let path = statusLineTokens[1].characters.split(separator: "/").map(String.init)
+                    guard let httpMethod = HTTPMethod.init(rawValue: statusLineTokens[0]) else {
+                        _ = try client.write404()
+                        try client.close()
+                        self?.sockets.remove(client)
+                        
+                        //                    continue
+                        return
+                    }
+                    
+                    let request = Request(method: httpMethod, path: path)
+                    guard let (params, content) = self?.router.route(request) else {
+                        _ = try client.write404()
+                        try client.close()
+                        self?.sockets.remove(client)
+                        
+                        //                    continue
+                        return
+                    }
+                    
+                    let paramsDeclaration = params.keys.map{ String($0.characters.dropFirst()) }.joined(separator: ",")
+                    
+                    let jsSource = "var mainFunc = function(\(paramsDeclaration)) { \(content) }"
+                    let context = JSContext()
+                    _ = context?.evaluateScript(jsSource)
+                    
+                    let mainFunc = context?.objectForKeyedSubscript("mainFunc")
+                    let result = mainFunc!.call(withArguments: Array(params.values))
+                    let evaluated =  String(describing: result!)
+                    
+                    print(evaluated)
+                    let data = [UInt8](evaluated.utf8)
+                    
+                    _ = try client.writeOK()
+                    _ = try client.write(message: "Content-Length: \(data.count)\r\n")
+                    _ = try client.write(message: "Content-Type: text/html\r\n")
+                    _ = try client.write(message: "\r\n")
+                    print(try client.write(message: evaluated))
+                    
+                    try client.close()
+                    self?.sockets.remove(client)
+                } catch {
+                    print("ERROR")
+                }
             }
-            
-            let request = Request(method: httpMethod, path: path)
-            guard let (params, content) = router.route(request) else {
-                _ = try client.write404()
-                try client.close()
-                
-                continue
-            }
-            
-            let paramsDeclaration = params.keys.map{ String($0.characters.dropFirst()) }.joined(separator: ",")
-            
-            let jsSource = "var mainFunc = function(\(paramsDeclaration)) { \(content) }"
-            let context = JSContext()
-            _ = context?.evaluateScript(jsSource)
-            
-            let mainFunc = context?.objectForKeyedSubscript("mainFunc")
-            let result = mainFunc!.call(withArguments: Array(params.values))
-            let evaluated =  String(describing: result!)
-            
-            print(evaluated)
-            let data = [UInt8](evaluated.utf8)
-            
-            _ = try client.writeOK()
-            _ = try client.write(message: "Content-Length: \(data.count)\r\n")
-            _ = try client.write(message: "Content-Type: text/html\r\n")
-            _ = try client.write(message: "\r\n")
-            print(try client.write(message: evaluated))
-            
-            try client.close()
         }
     }
 }
