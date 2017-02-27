@@ -1,16 +1,37 @@
 
-GET `/contact` &
-  return "<h1>contact</h1>"
+GET `/` &
+  var head = { "/meta charset='utf-8'": "", title: "Fabi: Simple DSL for Web Servers" } 
+  var body = { div: { ul: [ {li: "cool "}, {li: {"p style='color:red'": "ho"}} ] } } 
+  var html = { "html lang='en'" : { head, body } }
+
+  return bubulu.render(html)
 @@
 
 
-GET `/home/:name` &
-  1 + 3
-  return "<h1>Shalom</h1>"
+GET `/fibonacci/:number` &
+
+  var fib = function(x) {
+    if (x < 2) {
+      return 1
+    }
+
+    return fib(x - 2) + fib(x - 1) 
+  }
+
+  var head = { "/meta charset='utf-8'": "", title: "Fabi DSL" } 
+  var body = { div: { ul: [ {li: "cool "}, {li: {"p style='color:red'": "ho"}} ] } } 
+  var html = { "html lang='en'" : { head, body } }
+
+  return bubulu.render(html)
 @@
 
 
 
 GET `/login` &
   return "<h1>Login</h1>"
+@@
+
+GET `/test` &
+  var body = { div: { ul: [ {li: "cool "}, {li: {"p style='color:red'": "ho"}} ] } } 
+  return bubulu.render(body)
 @@

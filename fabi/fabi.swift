@@ -85,13 +85,8 @@ func tokenizer(input: String) -> [Token] {
  body: body
  */
 
-struct Request {
-    let method: HTTPMethod
-    let path: [String]
-}
-
 struct Handler {
-    let request: Request
+    let request: HTTPRequest
     let response: String
 }
 
@@ -149,7 +144,8 @@ struct Parser {
             }
             let path = try parsePath()
             let body  = try parseBody()
-            let request = Request(method: httpMethod, path: path)
+            
+            let request = HTTPRequest(method: httpMethod, path: path)
             let handler = Handler(request: request, response: body)
             
             nodes.append(handler)
@@ -224,7 +220,7 @@ struct Router {
         return nil
     }
     
-    public mutating func route(_ request: Request) -> ([String: String], String)? {
+    public mutating func route(_ request: HTTPRequest) -> ([String: String], String)? {
         var route = request.path
         route.insert(request.method.rawValue, at: 0)
         let pathSegments = route
@@ -370,6 +366,7 @@ struct Socket {
     
 }
 
+
 extension Socket: Hashable, Equatable {
     public var hashValue: Int {
         return Int(self.descriptor)
@@ -377,6 +374,35 @@ extension Socket: Hashable, Equatable {
     
     static public func == (socket1: Socket, socket2: Socket) -> Bool {
         return socket1.descriptor == socket2.descriptor
+    }
+}
+
+enum ParseHTTPError: Error {
+    case missing(String)
+}
+
+struct HTTPRequest {
+    let method: HTTPMethod
+    let path: [String]
+    
+    init(method: HTTPMethod, path: [String]) {
+        self.method = method
+        self.path = path
+    }
+    
+    init(parse client: Socket) throws {
+        let response = try client.readLine()
+        let statusLineTokens = response.characters.split { $0 == " " }.map(String.init)
+        if statusLineTokens.count < 3 {
+            throw SocketError.failed(errnoDescription())
+        }
+        
+        guard let httpMethod = HTTPMethod.init(rawValue: statusLineTokens[0]) else {
+            throw ParseHTTPError.missing("HTTP Method not found")
+        }
+        
+        self.method = httpMethod
+        self.path = statusLineTokens[1].characters.split(separator: "/").map(String.init)
     }
 }
 
@@ -400,63 +426,55 @@ final class HTTPServer {
             
             DispatchQueue.global(qos: DispatchQoS.QoSClass.background).async { [weak self] in
                 
-                do {
                     self?.sockets.insert(client)
-                    let response = try client.readLine()
-                    let statusLineTokens = response.characters.split { $0 == " " }.map(String.init)
-                    if statusLineTokens.count < 3 {
-                        throw SocketError.failed(errnoDescription())
+                    while let request = try? HTTPRequest(parse: client)  {
+                        do {
+                            guard let (params, content) = self?.router.route(request) else {
+                                _ = try client.write404()
+                                try client.close()
+                                self?.sockets.remove(client)
+                                
+                                return
+                            }
+                            
+                            let evaluated = JSEngine.evaluate(content, params: params)
+                            print(evaluated)
+                            let data = [UInt8](evaluated.utf8)
+                            
+                            _ = try client.writeOK()
+                            _ = try client.write(message: "Content-Length: \(data.count)\r\n")
+                            _ = try client.write(message: "Content-Type: text/html\r\n")
+                            _ = try client.write(message: "\r\n")
+                            print(try client.write(message: evaluated))
+                            
+                            try client.close()
+                        } catch {
+                            print("Failed: \(error)")                            
+                        }
                     }
-                    
-                    print("Recieved: \(response)")
-                    
-                    print(statusLineTokens)
-                    let path = statusLineTokens[1].characters.split(separator: "/").map(String.init)
-                    guard let httpMethod = HTTPMethod.init(rawValue: statusLineTokens[0]) else {
-                        _ = try client.write404()
-                        try client.close()
-                        self?.sockets.remove(client)
-                        
-                        //                    continue
-                        return
-                    }
-                    
-                    let request = Request(method: httpMethod, path: path)
-                    guard let (params, content) = self?.router.route(request) else {
-                        _ = try client.write404()
-                        try client.close()
-                        self?.sockets.remove(client)
-                        
-                        //                    continue
-                        return
-                    }
-                    
-                    let paramsDeclaration = params.keys.map{ String($0.characters.dropFirst()) }.joined(separator: ",")
-                    
-                    let jsSource = "var mainFunc = function(\(paramsDeclaration)) { \(content) }"
-                    let context = JSContext()
-                    _ = context?.evaluateScript(jsSource)
-                    
-                    let mainFunc = context?.objectForKeyedSubscript("mainFunc")
-                    let result = mainFunc!.call(withArguments: Array(params.values))
-                    let evaluated =  String(describing: result!)
-                    
-                    print(evaluated)
-                    let data = [UInt8](evaluated.utf8)
-                    
-                    _ = try client.writeOK()
-                    _ = try client.write(message: "Content-Length: \(data.count)\r\n")
-                    _ = try client.write(message: "Content-Type: text/html\r\n")
-                    _ = try client.write(message: "\r\n")
-                    print(try client.write(message: evaluated))
-                    
-                    try client.close()
-                    self?.sockets.remove(client)
-                } catch {
-                    print("ERROR")
-                }
+                self?.sockets.remove(client)
             }
         }
+    }
+}
+
+struct JSEngine {
+    static func evaluate(_ body: String, params: [String: String]) -> String {
+        let paramsDeclaration = params.keys.map{ String($0.characters.dropFirst()) }.joined(separator: ",")
+        let context = JSContext()
+        context?.setObject(Bubulu.self, forKeyedSubscript: "bubulu" as (NSCopying & NSObjectProtocol)!)
+
+        let jsSource = "var mainFunc = function(\(paramsDeclaration)) { \(body) }"
+        
+        _ = context?.evaluateScript(jsSource)
+        
+        if let mainFunc = context?.objectForKeyedSubscript("mainFunc"),
+            let result = mainFunc.call(withArguments: Array(params.values)),
+            !result.isUndefined {
+            return String(describing: result)
+        }
+                
+        return "Error: \n \(body)"
     }
 }
 

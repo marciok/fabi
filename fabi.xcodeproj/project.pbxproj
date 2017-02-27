@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		57076FDA1E637BFF00C4D6B6 /* helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57076FD91E637BFF00C4D6B6 /* helpers.swift */; };
 		5786D92C1E265EB000BC910D /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5786D92B1E265EB000BC910D /* main.swift */; };
 		5786D9331E265EBB00BC910D /* fabi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5786D9321E265EBB00BC910D /* fabi.swift */; };
 		578C05FC1E296B31005D9F3C /* utils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 578C05FB1E296B31005D9F3C /* utils.swift */; };
@@ -25,6 +26,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		57076FD91E637BFF00C4D6B6 /* helpers.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = helpers.swift; sourceTree = "<group>"; };
+		5727586B1E643B0D0025A38B /* fabi-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "fabi-Bridging-Header.h"; sourceTree = "<group>"; };
+		5727586C1E643B0D0025A38B /* JSMethodsBridge.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSMethodsBridge.h; sourceTree = "<group>"; };
 		5786D9281E265EB000BC910D /* fabi */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = fabi; sourceTree = BUILT_PRODUCTS_DIR; };
 		5786D92B1E265EB000BC910D /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		5786D9321E265EBB00BC910D /* fabi.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = fabi.swift; sourceTree = "<group>"; };
@@ -42,6 +46,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		57206F0D1E608EEF004E3043 /* stdlib */ = {
+			isa = PBXGroup;
+			children = (
+				57076FD91E637BFF00C4D6B6 /* helpers.swift */,
+				5727586C1E643B0D0025A38B /* JSMethodsBridge.h */,
+				5727586B1E643B0D0025A38B /* fabi-Bridging-Header.h */,
+			);
+			name = stdlib;
+			sourceTree = "<group>";
+		};
 		5786D91F1E265EB000BC910D = {
 			isa = PBXGroup;
 			children = (
@@ -61,6 +75,7 @@
 		5786D92A1E265EB000BC910D /* fabi */ = {
 			isa = PBXGroup;
 			children = (
+				57206F0D1E608EEF004E3043 /* stdlib */,
 				5786D92B1E265EB000BC910D /* main.swift */,
 				5786D9321E265EBB00BC910D /* fabi.swift */,
 				578C05FB1E296B31005D9F3C /* utils.swift */,
@@ -101,6 +116,7 @@
 					5786D9271E265EB000BC910D = {
 						CreatedOnToolsVersion = 8.2;
 						DevelopmentTeam = 4SD2D4QDMB;
+						LastSwiftMigration = 0820;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -128,6 +144,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				578C05FC1E296B31005D9F3C /* utils.swift in Sources */,
+				57076FDA1E637BFF00C4D6B6 /* helpers.swift in Sources */,
 				5786D92C1E265EB000BC910D /* main.swift in Sources */,
 				5786D9331E265EBB00BC910D /* fabi.swift in Sources */,
 			);
@@ -227,8 +244,12 @@
 		5786D9301E265EB000BC910D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				DEVELOPMENT_TEAM = 4SD2D4QDMB;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "fabi/fabi-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 3.0;
 			};
 			name = Debug;
@@ -236,8 +257,11 @@
 		5786D9311E265EB000BC910D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				DEVELOPMENT_TEAM = 4SD2D4QDMB;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "fabi/fabi-Bridging-Header.h";
 				SWIFT_VERSION = 3.0;
 			};
 			name = Release;
