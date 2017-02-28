@@ -8,35 +8,34 @@
 
 import Foundation
 
-
-var input = try! String(contentsOfFile: "/Users/MarcioK/Projects/fabi/fabi/hello.fab")
-input = input.replacingOccurrences(of: "\n", with: "\\n")
-let regex = try! NSRegularExpression(pattern: "\\&\\\\n(.*?)\\@@")
-var nsString = input as NSString
-let results = regex.matches(in: input, range: NSRange(location: 0, length: nsString.length))
-var js = results.map { nsString.substring(with: $0.range).replacingOccurrences(of: "\\n", with: ";;")}
-input = nsString as String
-for i in 0..<results.count {
-    input = input.replacingCharacters(in: results[i].range.range(for: input)!, with: js[i])
+do {
+    var input = try String(contentsOfFile: "/Users/MarcioK/Projects/fabi/fabi/hello.fab")
+    input = preprocess(input)
+    
+    let tokens = tokenizer(input: input)
+    var parser = Parser(tokens: tokens)
+    let handlers = try parser.parseHandler()
+    
+    var router = Router()
+    
+    for handler in handlers {
+        router.register(handler)
+    }
+    
+    var runtime = JSRuntime()
+    runtime["bubulu"] = Bubulu.self
+    let socket = try Socket()
+    
+    var server = HTTPServer(socket: socket,
+                            router: router,
+                            handlers: handlers,
+                            runtime: runtime) // TODO: Fix that
+    try server.start()
+    
+} catch {
+   print("Error: \(error)")
 }
 
-input = input.replacingOccurrences(of: "\\n", with: " ")
 
-let tokens = tokenizer(input: input)
-var parser = Parser(tokens: tokens)
-let handlers = try! parser.parseHandler()
-var router = Router()
-for handler in handlers {
-    router.register(handler)
-}
-
-var runtime = JSRuntime()
-runtime["bubulu"] = Bubulu.self
-let socket = try! Socket()
-var server = HTTPServer(socket: socket,
-                        router: router,
-                        handlers: handlers,
-                        runtime: runtime) // TODO: Fix that
-try! server.start()
 
 

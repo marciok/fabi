@@ -42,3 +42,25 @@ public extension String {
         return nil
     }
 }
+
+public func preprocess(_ input: String) -> String {
+    var input = input
+    // Step 1. Adding another slash to the line breaker, so regex can match, or it will ignores the line break token when trying to match.     
+    input = input.replacingOccurrences(of: "\n", with: "\\n")
+    
+    // Step 2. Grabing all JS between `&` and `@@` and replacing line breaker with: `;;`
+    let regex = try! NSRegularExpression(pattern: "\\&\\\\n(.*?)\\@@")
+    let nsString = input as NSString
+    let results = regex.matches(in: input, range: NSRange(location: 0, length: nsString.length))
+    var js = results.map { nsString.substring(with: $0.range).replacingOccurrences(of: "\\n", with: ";;")}
+    input = nsString as String
+    for i in 0..<results.count {
+        input = input.replacingCharacters(in: results[i].range.range(for: input)!, with: js[i])
+    }
+    
+    // Step 3. Replacing line breakers with space
+    input = input.replacingOccurrences(of: "\\n", with: " ")
+    
+    return input
+}
+
