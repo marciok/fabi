@@ -16,20 +16,7 @@ do {
     var parser = Parser(tokens: tokens)
     let handlers = try parser.parseHandler()
     
-    var router = Router()
-    
-    for handler in handlers {
-        router.register(handler)
-    }
-    
-    var runtime = JSRuntime()
-    runtime["bubulu"] = Bubulu.self
-    let socket = try Socket()
-    
-    var server = HTTPServer(socket: socket,
-                            router: router,
-                            handlers: handlers,
-                            runtime: runtime) // TODO: Fix that
+    var server = try HTTPServer(handlers: handlers)
     try server.start()
     
 } catch {

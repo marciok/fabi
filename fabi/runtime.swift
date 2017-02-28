@@ -14,8 +14,15 @@ enum JSEngineError: Error {
 }
 
 struct JSRuntime {
-    
     private let context = JSContext()!
+    
+    init() {
+        self.registerHelpers()
+    }
+    
+    mutating func registerHelpers() {
+        self["bubulu"] = Bubulu.self
+    }
     
     public subscript(key: String) -> Any? {
         set {

@@ -417,17 +417,20 @@ struct HTTPRequest {
 }
 
 final class HTTPServer {
-    let socket: Socket
     private var sockets = Set<Socket>()
-    let handlers: [Handler]
-    var router: Router
-    var runtime: JSRuntime
+    private var router = Router()
+    private let socket: Socket
+    private let handlers: [Handler]
+    private var runtime = JSRuntime()
     
-    init(socket: Socket, router: Router, handlers: [Handler], runtime: JSRuntime) {
-        self.socket = socket
-        self.router = router
+    init(handlers: [Handler]) throws {
+        self.socket = try Socket()
+        
+        for handler in handlers {
+            self.router.register(handler)
+        }
+
         self.handlers = handlers
-        self.runtime = runtime
     }
     
     func createResponse(from request: HTTPRequest) -> Response {
