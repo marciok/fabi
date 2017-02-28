@@ -25,10 +25,17 @@ GET `/fibonacci/:number` &
   return bubulu.render(html)
 @@
 
+GET `/fib/:number` &
 
+  var fib = function(x) {
+    if (x < 2) {
+      return 1
+    }
 
-GET `/login` &
-  return "<h1>Login</h1>"
+    return fib(x - 2) + fib(x - 1) 
+  }
+
+  return { fibonacci: fib(number)}
 @@
 
 GET `/test` &

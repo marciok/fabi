@@ -22,7 +22,6 @@ for i in 0..<results.count {
 
 input = input.replacingOccurrences(of: "\\n", with: " ")
 
-
 let tokens = tokenizer(input: input)
 var parser = Parser(tokens: tokens)
 let handlers = try! parser.parseHandler()
@@ -31,8 +30,13 @@ for handler in handlers {
     router.register(handler)
 }
 
+var runtime = JSRuntime()
+runtime["bubulu"] = Bubulu.self
 let socket = try! Socket()
-var server = HTTPServer(socket: socket, router: router, handlers: handlers) // TODO: Fix that
+var server = HTTPServer(socket: socket,
+                        router: router,
+                        handlers: handlers,
+                        runtime: runtime) // TODO: Fix that
 try! server.start()
 
 

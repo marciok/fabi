@@ -256,7 +256,6 @@ struct Socket {
         
         var value: Int32 = 1
         if setsockopt(descriptor, SOL_SOCKET, SO_REUSEADDR, &value, socklen_t(MemoryLayout<Int32>.size)) == -1 {
-//            Darwin.close(descriptor) // TODO: Refactor
             throw SocketError.failed(errnoDescription())
         }
 
@@ -332,30 +331,42 @@ struct Socket {
         return buffer[0]
     }
     
-    func write(message: String) throws -> String {
-        let data = ArraySlice(message.utf8)
-       
-        try data.withUnsafeBufferPointer {
-            var sent = 0
-            let length = data.count
-            while sent < length {
-                let s = Darwin.write(descriptor, $0.baseAddress! + sent, Int(length - sent))
-                if s <= 0 {
-                    throw SocketError.failed("could send")
-                }
-                sent += s
-            }
-        }
+    func write(data: Data) throws {
+        let length = data.count
         
-        return message
+        try data.withUnsafeBytes { (pointer: UnsafePointer<UInt8>) in
+            try writeBuffer(pointer, length: length)
+        }
     }
     
-    func writeOK() throws -> String {
-        return try write(message: "HTTP/1.1 200 OK\r\n")
+    private func writeBuffer(_ pointer: UnsafeRawPointer, length: Int) throws {
+        var sent = 0
+        while sent < length {
+            let s = Darwin.write(descriptor, pointer + sent, Int(length - sent))
+            if s <= 0 {
+                throw SocketError.failed("could send")
+            }
+            sent += s
+        }
     }
     
-    func write404() throws -> String {
-        return try write(message: "HTTP/1.1 404 Not Found\r\n")
+    private func writeUInt8(_ data: ArraySlice<UInt8>) throws {
+        try data.withUnsafeBufferPointer {
+            try writeBuffer($0.baseAddress!, length: data.count)
+        }
+    }
+
+    func write(message: String) throws {
+        try writeUInt8(ArraySlice(message.utf8))
+    }
+    
+    func write(content: Content) throws{
+        switch content {
+        case .json(let data):
+            try write(data: data)
+        case .html(let text):
+            try write(message: text)
+        }
     }
     
     func close() throws {
@@ -365,7 +376,6 @@ struct Socket {
     }
     
 }
-
 
 extension Socket: Hashable, Equatable {
     public var hashValue: Int {
@@ -411,75 +421,97 @@ final class HTTPServer {
     private var sockets = Set<Socket>()
     let handlers: [Handler]
     var router: Router
+    var runtime: JSRuntime
     
-    init(socket: Socket, router: Router, handlers: [Handler]) {
+    init(socket: Socket, router: Router, handlers: [Handler], runtime: JSRuntime) {
         self.socket = socket
         self.router = router
         self.handlers = handlers
+        self.runtime = runtime
+    }
+    
+    func createResponse(from request: HTTPRequest) -> Response {
+        guard let (params, handler) = self.router.route(request) else {
+            return Response(status: .notFound, content: .html("Not found"))
+        }
+        
+        do {
+            let content = try runtime.evaluate(handler, params: params)
+            return Response(status: .ok, content: content)
+        } catch {
+            return Response(status: .ok, content: .html("Runtime Error: \(error)"))
+        }
     }
     
     func start(port: in_port_t = 8080) throws {
         try socket.bindAndListen()
         print("Server started at \(port)")
         
+        
         while let client = try? socket.acceptClient() {
             
             DispatchQueue.global(qos: DispatchQoS.QoSClass.background).async { [weak self] in
-                
-                    self?.sockets.insert(client)
+                    guard let `self` = self else { return }
+                    self.sockets.insert(client)
                     while let request = try? HTTPRequest(parse: client)  {
                         do {
-                            guard let (params, content) = self?.router.route(request) else {
-                                _ = try client.write404()
-                                try client.close()
-                                self?.sockets.remove(client)
-                                
-                                return
+                            let response = self.createResponse(from: request)
+                            
+                            try client.write(message: "HTTP/1.1 \(response.status.rawValue) \(response.status.description)\r\n")
+                            
+                            if response.content.length > 0 {
+                                try client.write(message: "Content-Length: \(response.content.length)\r\n")
                             }
                             
-                            let evaluated = JSEngine.evaluate(content, params: params)
-                            print(evaluated)
-                            let data = [UInt8](evaluated.utf8)
-                            
-                            _ = try client.writeOK()
-                            _ = try client.write(message: "Content-Length: \(data.count)\r\n")
-                            _ = try client.write(message: "Content-Type: text/html\r\n")
-                            _ = try client.write(message: "\r\n")
-                            print(try client.write(message: evaluated))
-                            
+                            try client.write(message: "Content-Type: \(response.content.type)\r\n")
+                            try client.write(message: "\r\n")
+                            try client.write(content: response.content)
                             try client.close()
+                            
                         } catch {
                             print("Failed: \(error)")                            
                         }
                     }
-                self?.sockets.remove(client)
+                self.sockets.remove(client)
             }
         }
     }
 }
 
-struct JSEngine {
-    static func evaluate(_ body: String, params: [String: String]) -> String {
-        let paramsDeclaration = params.keys.map{ String($0.characters.dropFirst()) }.joined(separator: ",")
-        let context = JSContext()
-        context?.setObject(Bubulu.self, forKeyedSubscript: "bubulu" as (NSCopying & NSObjectProtocol)!)
-
-        let jsSource = "var mainFunc = function(\(paramsDeclaration)) { \(body) }"
-        
-        _ = context?.evaluateScript(jsSource)
-        
-        if let mainFunc = context?.objectForKeyedSubscript("mainFunc"),
-            let result = mainFunc.call(withArguments: Array(params.values)),
-            !result.isUndefined {
-            return String(describing: result)
+enum Status: Int {
+    case ok = 200
+    case notFound = 404
+    
+    var description: String {
+        switch self {
+        case .ok: return "OK"
+        case .notFound: return "Not Found"
         }
-                
-        return "Error: \n \(body)"
     }
 }
 
+enum Content {
+    case json(Data)
+    case html(String)
+    
+    var type: String {
+        switch self {
+        case .json: return "application/json"
+        case .html: return "text/html"
+        }
+    }
+    
+    var length: Int {
+        switch self {
+        case .json(let data): return data.count
+        case .html(let text): return ArraySlice(text.utf8).count
+        }
+    }
+    
+}
 
-
-
-
+struct Response {
+    let status: Status
+    let content: Content
+}
 

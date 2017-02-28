@@ -7,10 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		57076FDA1E637BFF00C4D6B6 /* helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57076FD91E637BFF00C4D6B6 /* helpers.swift */; };
+		57076FDA1E637BFF00C4D6B6 /* template.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57076FD91E637BFF00C4D6B6 /* template.swift */; };
 		5786D92C1E265EB000BC910D /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5786D92B1E265EB000BC910D /* main.swift */; };
 		5786D9331E265EBB00BC910D /* fabi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5786D9321E265EBB00BC910D /* fabi.swift */; };
 		578C05FC1E296B31005D9F3C /* utils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 578C05FB1E296B31005D9F3C /* utils.swift */; };
+		57E55D761E64DCEC009DABC9 /* runtime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57E55D751E64DCEC009DABC9 /* runtime.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,13 +27,14 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		57076FD91E637BFF00C4D6B6 /* helpers.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = helpers.swift; sourceTree = "<group>"; };
+		57076FD91E637BFF00C4D6B6 /* template.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = template.swift; sourceTree = "<group>"; };
 		5727586B1E643B0D0025A38B /* fabi-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "fabi-Bridging-Header.h"; sourceTree = "<group>"; };
 		5727586C1E643B0D0025A38B /* JSMethodsBridge.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSMethodsBridge.h; sourceTree = "<group>"; };
 		5786D9281E265EB000BC910D /* fabi */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = fabi; sourceTree = BUILT_PRODUCTS_DIR; };
 		5786D92B1E265EB000BC910D /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		5786D9321E265EBB00BC910D /* fabi.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = fabi.swift; sourceTree = "<group>"; };
 		578C05FB1E296B31005D9F3C /* utils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = utils.swift; sourceTree = "<group>"; };
+		57E55D751E64DCEC009DABC9 /* runtime.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = runtime.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,14 +48,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		57206F0D1E608EEF004E3043 /* stdlib */ = {
+		57206F0D1E608EEF004E3043 /* JavaScript Runtime */ = {
 			isa = PBXGroup;
 			children = (
-				57076FD91E637BFF00C4D6B6 /* helpers.swift */,
+				57076FD91E637BFF00C4D6B6 /* template.swift */,
 				5727586C1E643B0D0025A38B /* JSMethodsBridge.h */,
 				5727586B1E643B0D0025A38B /* fabi-Bridging-Header.h */,
+				57E55D751E64DCEC009DABC9 /* runtime.swift */,
 			);
-			name = stdlib;
+			name = "JavaScript Runtime";
 			sourceTree = "<group>";
 		};
 		5786D91F1E265EB000BC910D = {
@@ -75,7 +78,7 @@
 		5786D92A1E265EB000BC910D /* fabi */ = {
 			isa = PBXGroup;
 			children = (
-				57206F0D1E608EEF004E3043 /* stdlib */,
+				57206F0D1E608EEF004E3043 /* JavaScript Runtime */,
 				5786D92B1E265EB000BC910D /* main.swift */,
 				5786D9321E265EBB00BC910D /* fabi.swift */,
 				578C05FB1E296B31005D9F3C /* utils.swift */,
@@ -143,8 +146,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				57E55D761E64DCEC009DABC9 /* runtime.swift in Sources */,
 				578C05FC1E296B31005D9F3C /* utils.swift in Sources */,
-				57076FDA1E637BFF00C4D6B6 /* helpers.swift in Sources */,
+				57076FDA1E637BFF00C4D6B6 /* template.swift in Sources */,
 				5786D92C1E265EB000BC910D /* main.swift in Sources */,
 				5786D9331E265EBB00BC910D /* fabi.swift in Sources */,
 			);
