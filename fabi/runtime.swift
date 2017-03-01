@@ -8,7 +8,7 @@
 
 import Foundation
 
-enum JSEngineError: Error {
+enum JSRuntimeError: Error {
     case objectsDontExist(String)
     case undefined
 }
@@ -20,7 +20,7 @@ struct JSRuntime {
         self.registerHelpers()
     }
     
-    mutating func registerHelpers() {
+    private mutating func registerHelpers() {
         self["bubulu"] = Bubulu.self
     }
     
@@ -42,11 +42,11 @@ struct JSRuntime {
         
         guard let mainFunc = self["mainFunc"] as? JSValue,
             let result = mainFunc.call(withArguments: Array(params.values)) else  {
-                throw JSEngineError.objectsDontExist("mainFunc and result is nil")
+                throw JSRuntimeError.objectsDontExist("mainFunc and result is nil")
         }
         
         guard !result.isUndefined else {
-            throw JSEngineError.undefined
+            throw JSRuntimeError.undefined
         }
         
         return try JSRuntime.parse(result)

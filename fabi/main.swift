@@ -9,7 +9,15 @@
 import Foundation
 
 do {
-    var input = try String(contentsOfFile: "/Users/MarcioK/Projects/fabi/fabi/hello.fab")
+    let args = CommandLine.arguments
+    let filePath = args[1]
+    var port: in_port_t? = nil
+    
+    if args[2] == "-p" {
+        port = UInt16(args[3])!
+    }
+    
+    var input = try String(contentsOfFile: filePath)
     input = preprocess(input)
     
     let tokens = tokenizer(input: input)
@@ -17,7 +25,11 @@ do {
     let handlers = try parser.parseHandler()
     
     var server = try HTTPServer(handlers: handlers)
-    try server.start()
+    if let port = port {
+        try server.start(port: port)
+    } else {
+        try server.start()
+    }
     
 } catch {
    print("Error: \(error)")

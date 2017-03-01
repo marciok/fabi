@@ -433,23 +433,22 @@ final class HTTPServer {
         self.handlers = handlers
     }
     
-    func createResponse(from request: HTTPRequest) -> Response {
+    func createResponse(from request: HTTPRequest) -> HTTPResponse {
         guard let (params, handler) = self.router.route(request) else {
-            return Response(status: .notFound, content: .html("Not found"))
+            return HTTPResponse(status: .notFound, content: .html("Not found"))
         }
         
         do {
             let content = try runtime.evaluate(handler, params: params)
-            return Response(status: .ok, content: content)
+            return HTTPResponse(status: .ok, content: content)
         } catch {
-            return Response(status: .ok, content: .html("Runtime Error: \(error)"))
+            return HTTPResponse(status: .ok, content: .html("Runtime Error: \(error)"))
         }
     }
     
     func start(port: in_port_t = 8080) throws {
-        try socket.bindAndListen()
+        try socket.bindAndListen(port: port)
         print("Server started at \(port)")
-        
         
         while let client = try? socket.acceptClient() {
             
@@ -513,7 +512,7 @@ enum Content {
     
 }
 
-struct Response {
+struct HTTPResponse {
     let status: Status
     let content: Content
 }
